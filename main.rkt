@@ -43,15 +43,19 @@
               #:hint [hint #f]
               #:length [len 0] #:offset [off 0] #:prot [prot 'PROT_READ]
               #:flags [flags 'MAP_PRIVATE])
+  (define sz (file-size f))
+  (unless (>= sz (+ off len))
+    (raise-argument-error 'mmap (format "file with size at least ~s" (+ off len))
+                          f))
   (define-values (in out) (open-input-output-file f #:exists 'can-update))
   (define m (_mmap hint len (->bits prot) (->bits flags) (get_port_fd in) off))
   (define result (cast m _pointer _long))
   (unless (< 0 result)
     (error 'mmap "errno: ~s ~s" (saved-errno) result))
-  (cast m _pointer (_bytes o len)))
+  (make-sized-byte-string m len))
 
 (module* test racket/base
   (require rackunit racket/runtime-path (submod ".."))
   (define-runtime-path here "main.rkt")
-  (define m (mmap here #:length 5))
+  (define m (mmap here #:length 5 #:prot 'PROT_READ #:flags 'MAP_SHARED))
   (check-equal? m #"#lang"))
