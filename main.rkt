@@ -1,6 +1,6 @@
 #lang racket/base
 
-(require ffi/unsafe (except-in racket/contract ->))
+(require ffi/unsafe ffi/unsafe/port (except-in racket/contract ->))
 (provide (contract-out [mmap (->* (path-string?) (#:hint (or/c #f exact-nonnegative-integer?)
                                                   #:length exact-nonnegative-integer?
                                                   #:offset exact-nonnegative-integer?
@@ -33,7 +33,7 @@
       (hash-ref flags flag+)
       (apply bitwise-ior (map ->bits flag+))))
 
-(define get_port_fd (get-ffi-obj 'scheme_get_port_fd #f (_fun _racket -> _int)))
+(define get_port_fd unsafe-port->file-descriptor)
 
 (define _mmap
   (get-ffi-obj 'mmap #f
@@ -57,5 +57,6 @@
 (module* test racket/base
   (require rackunit racket/runtime-path (submod ".."))
   (define-runtime-path here "main.rkt")
-  (define m (mmap here #:length 5 #:prot 'PROT_READ #:flags 'MAP_SHARED))
-  (check-equal? m #"#lang"))
+  (when (eq? 'racket (system-type 'vm))
+    (define m (mmap here #:length 5 #:prot 'PROT_READ #:flags 'MAP_SHARED))
+    (check-equal? m #"#lang")))
